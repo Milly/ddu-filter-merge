@@ -1,0 +1,92 @@
+*ddu-filter-merge.txt*			    Merge multiple filters for ddu.vim
+
+Author:  Milly https://github.com/Milly
+License: MIT License (See LICENSE)
+
+CONTENTS						    *ddu-filter-merge*
+
+Introduction		|ddu-filter-merge-introduction|
+Install			|ddu-filter-merge-install|
+Examples		|ddu-filter-merge-examples|
+Params			|ddu-filter-merge-params|
+
+
+==============================================================================
+INTRODUCTION				       *ddu-filter-merge-introduction*
+
+This matcher merges output items from multiple filters.
+
+
+==============================================================================
+INSTALL						    *ddu-filter-merge-install*
+
+Install all plugins below.
+
+[denops.vim]: https://github.com/vim-denops/denops.vim
+[ddu.vim]: https://github.com/Shougo/ddu.vim
+
+And your favorite ddu-filter plugins.
+
+
+==============================================================================
+EXAMPLES					   *ddu-filter-merge-examples*
+>
+>
+	call ddu#custom#patch_global('sourceOptions', #{
+	      \  _: #{
+	      \    matchers: ['merge'],
+	      \  },
+	      \})
+
+	call ddu#custom#patch_global('filterParams', #{
+	      \  merge: #{
+	      \    filters: [
+	      \      #{name: 'matcher_kensaku', weight: 2.0},
+	      \      'matcher_fuse',
+	      \    ],
+	      \    unique: v:true,
+	      \  },
+	      \})
+<
+
+==============================================================================
+PARAMS						     *ddu-filter-merge-params*
+
+					      *ddu-filter-merge-param-filters*
+filters (list)
+		The list of child filters.
+		Each element is one of the following:
+
+		(string)
+			The filter name.
+			This is shorthand for dict.
+
+		(dict)
+			A dict with the following keys:
+
+			name (string)
+				The filter name.
+				This is always required.
+
+			limit (number) (optional)
+				Limit the number of items.
+				If 0 or less, there is no limit.
+
+				Default: 0
+
+			weight (number) (optional)
+				Item order weight.
+				This must be greater than 0.
+
+				Default: 1.0
+
+		Default: []
+
+					       *ddu-filter-merge-param-unique*
+unique (boolean)
+		If true, remove duplicate items.
+
+		Default: v:true
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:noet:fen:noet:
