@@ -1,17 +1,14 @@
 import { toFileUrl } from "https://deno.land/std@0.171.0/path/mod.ts";
 import { type Denops } from "https://deno.land/x/denops_std@v4.0.0/mod.ts";
 import {
-  BaseFilter,
   type DduItem,
-  DduOptions,
+  type DduOptions,
   type FilterOptions,
 } from "https://deno.land/x/ddu_vim@v2.2.0/types.ts";
 import {
+  BaseFilter,
   type FilterArguments,
-  type OnInitArguments,
 } from "https://deno.land/x/ddu_vim@v2.2.0/base/filter.ts";
-import * as fn from "https://deno.land/x/denops_std@v4.0.0/function/mod.ts";
-import * as op from "https://deno.land/x/denops_std@v4.0.0/option/mod.ts";
 import {
   assertArray,
   AssertError,
@@ -29,8 +26,8 @@ type FilterModule = {
 
 type FilterParams = Record<string, unknown>;
 
-type GetFilterResult = [
-  FilterClass | undefined,
+type DduGetFilterResult = [
+  string,
   FilterOptions,
   FilterParams,
 ];
@@ -69,21 +66,14 @@ export class Filter extends BaseFilter<Params> {
     };
   }
 
-  override async onInit(args: OnInitArguments<Params>): Promise<void> {
-    const { denops, filterParams } = args;
-    const { filters } = ensureFilterParams(filterParams);
-    await this.#loadFilters(denops, filters);
-  }
-
   override async filter(args: FilterArguments<Params>): Promise<DduItem[]> {
     let { items } = args;
     const { denops, input, options, sourceOptions, filterParams } = args;
 
     const { filters } = ensureFilterParams(filterParams);
-    await this.#loadFilters(denops, filters);
 
     const availFilters = (await Promise.all(filters.map(async (param) => {
-      const [filter, filterOptions, filterParams] = await this.#getFilter(
+      const { filter, filterOptions, filterParams } = await this.#getFilter(
         denops,
         param.name,
         options,
@@ -132,65 +122,50 @@ export class Filter extends BaseFilter<Params> {
     return items;
   }
 
-  async #loadFilters(denops: Denops, filters: ChildFilter[]): Promise<void> {
-    const notLoaded = new Set(
-      filters.map(({ name }) => name).filter((name) =>
-        !this.#filters.has(name)
-      ),
-    );
-    if (notLoaded.size === 0) return;
-
-    const runtimepath = await op.runtimepath.getGlobal(denops);
-    await Promise.all(
-      Array.from(notLoaded).map(async (name) => {
-        const expr = `denops/@ddu-filters/${name}.ts`;
-        const glob = await fn.globpath(
-          denops,
-          runtimepath,
-          expr,
-          /* NOSUF */ 1,
-          /* LIST */ 1,
-        ) as string[];
-        const path = glob.at(0);
-        if (path) {
-          const mod = await import(toFileUrl(path).href) as FilterModule;
-          const filter = new mod.Filter();
-          filter.name = name;
-          this.#filters.set(name, filter);
-        }
-      }),
-    );
+  async #loadFilter(name: string, path: string): Promise<FilterClass> {
+    let filter = this.#filters.get(name);
+    if (!filter) {
+      const mod = await import(toFileUrl(path).href) as FilterModule;
+      filter = new mod.Filter();
+      filter.name = name;
+      this.#filters.set(name, filter);
+    }
+    return filter;
   }
 
   async #getFilter(
     denops: Denops,
     name: string,
     options: DduOptions,
-  ): Promise<GetFilterResult> {
-    const filter = this.#filters.get(name);
-    if (!filter) {
-      logError(`Invalid filter: ${name}`);
-      return [undefined, {}, {}];
-    }
-
-    const [_, filterOptions, filterParams] = await denops.dispatch(
-      "ddu",
-      "getFilter",
+  ): Promise<{
+    filter: FilterClass | undefined;
+    filterOptions: FilterOptions;
+    filterParams: FilterParams;
+  }> {
+    const [path, filterOptions, filterParams] = await dduGetFilter(
+      denops,
       options.name,
       name,
-    ) as GetFilterResult;
+    );
+
+    if (!path) {
+      logError(`Invalid filter: ${name}`);
+      return { filter: undefined, filterOptions, filterParams };
+    }
+
+    const filter = await this.#loadFilter(name, path);
 
     if (!filter.isInitialized) {
       try {
         await filter.onInit({ denops, filterOptions, filterParams });
       } catch (e: unknown) {
         logError(e);
-        return [undefined, {}, {}];
+        return { filter: undefined, filterOptions, filterParams };
       }
       filter.isInitialized = true;
     }
 
-    return [filter, filterOptions, filterParams];
+    return { filter, filterOptions, filterParams };
   }
 }
 
@@ -227,4 +202,17 @@ function toItemHash(item: DduItem): string {
 
 function nonNullable<T>(value: T): value is NonNullable<T> {
   return value != null;
+}
+
+function dduGetFilter(
+  denops: Denops,
+  dduName: string,
+  filterName: string,
+): Promise<DduGetFilterResult> {
+  return denops.dispatch(
+    "ddu",
+    "getFilter",
+    dduName,
+    filterName,
+  ) as DduGetFilterResult;
 }
