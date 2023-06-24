@@ -1,22 +1,20 @@
-import { toFileUrl } from "https://deno.land/std@0.171.0/path/mod.ts";
-import { type Denops } from "https://deno.land/x/denops_std@v4.0.0/mod.ts";
+import { toFileUrl } from "https://deno.land/std@0.192.0/path/mod.ts";
+import { type Denops } from "https://deno.land/x/denops_std@v5.0.1/mod.ts";
 import {
   type DduItem,
   type DduOptions,
   type FilterOptions,
-} from "https://deno.land/x/ddu_vim@v2.2.0/types.ts";
+} from "https://deno.land/x/ddu_vim@v3.2.7/types.ts";
 import {
   BaseFilter,
   type FilterArguments,
-} from "https://deno.land/x/ddu_vim@v2.2.0/base/filter.ts";
+} from "https://deno.land/x/ddu_vim@v3.2.7/base/filter.ts";
 import {
-  assertArray,
+  assert,
   AssertError,
-  assertObject,
-  ensureBoolean,
-  ensureNumber,
-  isString,
-} from "https://deno.land/x/unknownutil@v2.1.0/mod.ts";
+  ensure,
+  is,
+} from "https://deno.land/x/unknownutil@v3.2.0/mod.ts";
 
 type FilterClass = BaseFilter<Record<string, unknown>>;
 
@@ -67,8 +65,15 @@ export class Filter extends BaseFilter<Params> {
   }
 
   override async filter(args: FilterArguments<Params>): Promise<DduItem[]> {
-    let { items } = args;
-    const { denops, input, options, sourceOptions, filterParams } = args;
+    const {
+      denops,
+      items,
+      options,
+      sourceOptions,
+      filterOptions: _,
+      filterParams,
+      ...restArgs
+    } = args;
 
     const { filters } = ensureFilterParams(filterParams);
 
@@ -89,8 +94,8 @@ export class Filter extends BaseFilter<Params> {
       availFilters.map(
         async ({ param, filter, filterOptions, filterParams }) => {
           let subItems = await filter.filter({
+            ...restArgs,
             denops,
-            input,
             // NOTE: Shallow copy each items.
             items: items.map((item) => ({ ...item })),
             options,
@@ -111,15 +116,14 @@ export class Filter extends BaseFilter<Params> {
     )).flat();
 
     const sorted = merged.sort((a, b) => a.score - b.score);
-    items = sorted.map(({ item }) => item);
 
-    if (filterParams.unique) {
-      items = Array.from(
-        new Map(items.map((item) => [toItemHash(item), item])).values(),
-      );
-    }
+    const result = filterParams.unique
+      ? Array.from(
+        new Map(sorted.map(({ item }) => [toItemHash(item), item])).values(),
+      )
+      : sorted.map(({ item }) => item);
 
-    return items;
+    return result;
   }
 
   async #loadFilter(name: string, path: string): Promise<FilterClass> {
@@ -174,15 +178,15 @@ function logError(msg: unknown): void {
 }
 
 function ensureFilterParams(params: Params): NormalizeParams {
-  assertArray(params.filters);
+  assert(params.filters, is.Array);
   const filters = params.filters.map((p): Required<ChildFilter> => {
-    if (isString(p)) {
+    if (is.String(p)) {
       p = { name: p };
     } else {
-      assertObject(p);
+      assert(p, is.Record);
     }
-    const limit = ensureNumber(p.limit ?? 0);
-    const weight = ensureNumber(p.weight ?? 1.0);
+    const limit = ensure(p.limit ?? 0, is.Number);
+    const weight = ensure(p.weight ?? 1.0, is.Number);
     if (weight <= 0) {
       throw new AssertError(
         `Invalid parameter: 'weight' must be greater than 0, but ${weight}`,
@@ -190,10 +194,8 @@ function ensureFilterParams(params: Params): NormalizeParams {
     }
     return { name: p.name, limit, weight };
   });
-  return {
-    filters,
-    unique: ensureBoolean(params.unique),
-  };
+  const unique = ensure(params.unique, is.Boolean);
+  return { filters, unique };
 }
 
 function toItemHash(item: DduItem): string {
@@ -214,5 +216,5 @@ function dduGetFilter(
     "getFilter",
     dduName,
     filterName,
-  ) as DduGetFilterResult;
+  ) as Promise<DduGetFilterResult>;
 }
