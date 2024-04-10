@@ -1,20 +1,21 @@
-import { toFileUrl } from "https://deno.land/std@0.192.0/path/mod.ts";
-import { type Denops } from "https://deno.land/x/denops_std@v5.0.1/mod.ts";
-import {
-  type DduItem,
-  type DduOptions,
-  type FilterOptions,
-} from "https://deno.land/x/ddu_vim@v3.2.7/types.ts";
+import { toFileUrl } from "https://deno.land/std@0.221.0/path/mod.ts";
+import { type Denops } from "https://deno.land/x/denops_std@v6.4.0/mod.ts";
+import type {
+  DduFilterItems,
+  DduItem,
+  DduOptions,
+  FilterOptions,
+} from "https://deno.land/x/ddu_vim@v3.10.3/types.ts";
 import {
   BaseFilter,
   type FilterArguments,
-} from "https://deno.land/x/ddu_vim@v3.2.7/base/filter.ts";
+} from "https://deno.land/x/ddu_vim@v3.10.3/base/filter.ts";
 import {
   assert,
   AssertError,
   ensure,
   is,
-} from "https://deno.land/x/unknownutil@v3.2.0/mod.ts";
+} from "https://deno.land/x/unknownutil@v3.17.2/mod.ts";
 
 type FilterClass = BaseFilter<Record<string, unknown>>;
 
@@ -64,7 +65,9 @@ export class Filter extends BaseFilter<Params> {
     };
   }
 
-  override async filter(args: FilterArguments<Params>): Promise<DduItem[]> {
+  override async filter(
+    args: FilterArguments<Params>,
+  ): Promise<DduFilterItems> {
     const {
       denops,
       items,
@@ -93,7 +96,7 @@ export class Filter extends BaseFilter<Params> {
     const merged = (await Promise.all(
       availFilters.map(
         async ({ param, filter, filterOptions, filterParams }) => {
-          let subItems = await filter.filter({
+          const filterItems = await filter.filter({
             ...restArgs,
             denops,
             // NOTE: Shallow copy each items.
@@ -103,6 +106,12 @@ export class Filter extends BaseFilter<Params> {
             filterOptions,
             filterParams,
           });
+
+          // NOTE: drop optional parameters of DduFilterItems
+          let subItems = Array.isArray(filterItems)
+            ? filterItems
+            : filterItems.items;
+
           if (param.limit > 0) {
             subItems = subItems.slice(0, param.limit);
           }
