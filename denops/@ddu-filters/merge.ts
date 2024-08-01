@@ -1,21 +1,16 @@
-import { toFileUrl } from "https://deno.land/std@0.221.0/path/mod.ts";
-import { type Denops } from "https://deno.land/x/denops_std@v6.4.0/mod.ts";
+import type { Denops } from "jsr:@denops/std@^7.0.0";
+import { toFileUrl } from "jsr:@std/path@^1.0.0";
+import {
+  BaseFilter,
+  type FilterArguments,
+} from "jsr:@shougo/ddu-vim@^5.0.0/filter";
 import type {
   DduFilterItems,
   DduItem,
   DduOptions,
   FilterOptions,
-} from "https://deno.land/x/ddu_vim@v3.10.3/types.ts";
-import {
-  BaseFilter,
-  type FilterArguments,
-} from "https://deno.land/x/ddu_vim@v3.10.3/base/filter.ts";
-import {
-  assert,
-  AssertError,
-  ensure,
-  is,
-} from "https://deno.land/x/unknownutil@v3.17.2/mod.ts";
+} from "jsr:@shougo/ddu-vim@^5.0.0/types";
+import { assert, AssertError, ensure, is } from "jsr:@core/unknownutil@^3.18.1";
 
 type FilterClass = BaseFilter<Record<string, unknown>>;
 
