@@ -1,5 +1,5 @@
 import type { Denops } from "@denops/std";
-import { toFileUrl } from "@std/path";
+import { join } from "@std/path/join";
 import { BaseFilter, type FilterArguments } from "@shougo/ddu-vim/filter";
 import type {
   DduFilterItems,
@@ -7,6 +7,7 @@ import type {
   DduOptions,
   FilterOptions,
 } from "@shougo/ddu-vim/types";
+import { importPlugin } from "@shougo/ddu-vim/utils";
 import { assert, AssertError, ensure, is } from "@core/unknownutil";
 
 type FilterClass = BaseFilter<Record<string, unknown>>;
@@ -46,6 +47,9 @@ type ScoreItem = {
   score: number;
   item: DduItem;
 };
+
+// Structured extension module entry point file.
+const EXT_ENTRY_POINT_FILE = "main.ts";
 
 export class Filter extends BaseFilter<Params> {
   #filters: Map<string, FilterClass> = new Map();
@@ -130,7 +134,11 @@ export class Filter extends BaseFilter<Params> {
   async #loadFilter(name: string, path: string): Promise<FilterClass> {
     let filter = this.#filters.get(name);
     if (!filter) {
-      const mod = await import(toFileUrl(path).href) as FilterModule;
+      const fileInfo = await Deno.stat(path);
+      const entryPoint = fileInfo.isDirectory
+        ? join(path, EXT_ENTRY_POINT_FILE)
+        : path;
+      const mod = await importPlugin(entryPoint) as FilterModule;
       filter = new mod.Filter();
       filter.name = name;
       this.#filters.set(name, filter);
