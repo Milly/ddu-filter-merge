@@ -22,14 +22,31 @@ jobs:
         runner:
           - ubuntu-latest
         deno_version:
-          - "1.45.x"
+          - "2.3.0"
+          - "2.x"
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: denoland/setup-deno@v1
+      - uses: denoland/setup-deno@v2
         with:
           deno-version: "${{ matrix.deno_version }}"
 
-      - name: Check
-        run: deno task check
+      - name: Pre-cache dependencies
+        run: deno task cache
+
+      - name: Check lint
+        if: ${{ !cancelled() }}
+        run: deno task check:lint
+
+      - name: Check format
+        if: ${{ !cancelled() }}
+        run: deno task check:fmt
+
+      - name: Check type
+        if: ${{ !cancelled() }}
+        run: deno task check:type
+
+      - name: Check doc
+        if: ${{ !cancelled() }}
+        run: deno task check:doc

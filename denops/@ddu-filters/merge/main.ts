@@ -1,16 +1,13 @@
-import type { Denops } from "jsr:@denops/std@^7.0.0";
-import { toFileUrl } from "jsr:@std/path@^1.0.0";
-import {
-  BaseFilter,
-  type FilterArguments,
-} from "jsr:@shougo/ddu-vim@^5.0.0/filter";
+import type { Denops } from "@denops/std";
+import { toFileUrl } from "@std/path";
+import { BaseFilter, type FilterArguments } from "@shougo/ddu-vim/filter";
 import type {
   DduFilterItems,
   DduItem,
   DduOptions,
   FilterOptions,
-} from "jsr:@shougo/ddu-vim@^5.0.0/types";
-import { assert, AssertError, ensure, is } from "jsr:@core/unknownutil@^3.18.1";
+} from "@shougo/ddu-vim/types";
+import { assert, AssertError, ensure, is } from "@core/unknownutil";
 
 type FilterClass = BaseFilter<Record<string, unknown>>;
 
